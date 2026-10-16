@@ -15,15 +15,21 @@ export function login(email, password = 'password') {
         tags: { name: 'POST /login' },
     });
     check(res, { 'login redireciona': (r) => r.status === 302 });
+
+    // versão dos assets do Inertia (sem ela o servidor responde 409 pedindo reload)
+    const page = http.get(`${BASE}/dashboard`, { tags: { name: 'GET /dashboard (html)' } });
+    const match = /&quot;version&quot;:&quot;([a-f0-9]+)&quot;|"version":"([a-f0-9]+)"/.exec(page.body);
+    version = match ? match[1] || match[2] : '';
 }
+
+let version = '';
 
 /** Requisição Inertia (JSON), como o front faz ao navegar entre telas. */
 export function inertia(path, name) {
     const res = http.get(`${BASE}${path}`, {
-        headers: { 'X-Inertia': 'true', 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html, application/xhtml+xml' },
+        headers: { 'X-Inertia': 'true', 'X-Inertia-Version': version, 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html, application/xhtml+xml' },
         tags: { name },
     });
-    // 409 = versão de assets mudou; tratamos como sucesso de rede
-    check(res, { [`${name} 200`]: (r) => r.status === 200 || r.status === 409 });
+    check(res, { [`${name} 200`]: (r) => r.status === 200 && r.headers['X-Inertia'] === 'true' });
     return res;
 }
