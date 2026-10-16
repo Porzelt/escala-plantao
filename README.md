@@ -12,6 +12,22 @@ reprodutível de turnos, trocas com aprovação, exportação em fila, painel ge
 > módulo com isolamento por unidade, filas no Horizon, auditoria com retenção, CI/CD no GitHub
 > Actions e teste de carga com k6. Nenhum código, nome, dado ou endereço do sistema real foi usado.
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Porzelt/escala-plantao?quickstart=1)
+
+**Teste sem instalar nada:** clique no botão acima (precisa estar logado no GitHub). Em ~3 minutos o
+Codespaces sobe app, MariaDB, Redis e Horizon com os dados de demonstração e abre o sistema no navegador.
+Entre com `gestor1@escala.test` / `password`.
+
+![Demonstração: gerar escala, exportar em fila e aprovar troca](docs/img/demo.gif)
+
+> 🇺🇸 **In English:** on-call shift scheduling system built with Laravel 12, Inertia.js + Vue 3, MariaDB,
+> Redis/Horizon and Docker. It showcases role/module-based access control with per-unit data isolation,
+> a fair and reproducible (seeded) shift-distribution algorithm with unit tests, queued XLSX/PDF exports
+> with a progress bar, an audit trail with retention, GitHub Actions CI (Pint + PHPUnit on MariaDB, 87.8%
+> coverage) and a k6 load test: **450 concurrent authenticated users, 0% errors**. It mirrors, with
+> fictitious data and open code, the patterns I use in production on a confidential government system.
+> One-click demo via the Codespaces button above.
+
 ![Painel](docs/img/painel.png)
 
 | Escala do mês | Trocas | Auditoria |
@@ -28,7 +44,7 @@ reprodutível de turnos, trocas com aprovação, exportação em fila, painel ge
 | **Fila assíncrona** — exportação XLSX/PDF na fila `exports` do Horizon, 202 + polling com barra de progresso, retries e `failed()` | [`ExportScheduleJob`](app/Jobs/ExportScheduleJob.php) · [`useExportProgress`](resources/js/Composables/useExportProgress.js) |
 | **Auditoria com retenção** — antes/depois só dos campos alterados, sem campos sensíveis, `model:prune` diário | [`Auditable`](app/Models/Concerns/Auditable.php) · [`AuditLog`](app/Models/AuditLog.php) |
 | **Trocas de plantão** — solicita → colega aceita → gestor aprova, transferência em transação com `lockForUpdate` | [`SwapService`](app/Services/SwapService.php) |
-| **Qualidade** — 70 testes (unit + feature) em MariaDB real, **87,8% de cobertura**, Pint, mínimo de 70% exigido no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
+| **Qualidade** — 71 testes (unit + feature) em MariaDB real, **87,8% de cobertura**, Pint, mínimo de 70% exigido no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
 | **Carga** — 450 usuários simultâneos autenticados, **0% de erro**, p95 1,48 s (medido) | [`tests/k6`](tests/k6) |
 
 ## Arquitetura
@@ -75,7 +91,9 @@ Decisões registradas em ADRs curtos:
 
 ## Como rodar
 
-Requer Docker. Não precisa de PHP nem Composer na máquina.
+**Mais rápido:** botão *Open in GitHub Codespaces* no topo — nada a instalar.
+
+**Na sua máquina:** requer Docker. Não precisa de PHP nem Composer na máquina.
 
 ```bash
 git clone https://github.com/Porzelt/escala-plantao.git && cd escala-plantao
@@ -102,7 +120,7 @@ Acesse http://localhost — contas fictícias (senha `password`):
 ### Testes e estilo
 
 ```bash
-./vendor/bin/sail artisan test        # 70 testes, banco MariaDB "testing"
+./vendor/bin/sail artisan test        # 71 testes, banco MariaDB "testing"
 ./vendor/bin/sail pint --test
 ```
 
@@ -144,4 +162,4 @@ docs/adr               decisões de arquitetura
 
 ---
 
-Feito por **Henrique Porzelt Neto** · [LinkedIn](https://linkedin.com/in/henriqueporzelt) · [GitHub](https://github.com/Porzelt)
+Licença [MIT](LICENSE) · Feito por **Henrique Porzelt Neto** · [LinkedIn](https://linkedin.com/in/henriqueporzelt) · [GitHub](https://github.com/Porzelt)
