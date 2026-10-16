@@ -19,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        // atrás de proxy HTTPS (Codespaces, load balancer): gera URLs com o esquema/host corretos
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'module' => EnsureModuleAccess::class,
         ]);
