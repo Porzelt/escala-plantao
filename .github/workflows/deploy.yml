@@ -1,0 +1,53 @@
+# Workflow de deploy de EXEMPLO (não roda sozinho neste repositório público).
+# Mostra o padrão usado em produção: runner self-hosted dentro da rede do servidor,
+# deploy atômico por release + symlink, migrations, cache de config e restart do Horizon.
+name: Deploy (exemplo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente
+        type: choice
+        options: [homologacao, producao]
+        default: homologacao
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux]
+    environment: ${{ inputs.environment }}   # aprovação manual configurada no ambiente "producao"
+    env:
+      APP_DIR: /var/www/escala-plantao
+      RELEASE: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build de dependências
+        run: |
+          composer install --no-dev --optimize-autoloader --no-interaction
+          npm ci && npm run build
+
+      - name: Publica release
+        run: |
+          mkdir -p "$APP_DIR/releases/$RELEASE"
+          rsync -a --delete --exclude='.git' --exclude='node_modules' ./ "$APP_DIR/releases/$RELEASE/"
+          ln -sfn "$APP_DIR/shared/.env" "$APP_DIR/releases/$RELEASE/.env"
+          rm -rf "$APP_DIR/releases/$RELEASE/storage" && ln -sfn "$APP_DIR/shared/storage" "$APP_DIR/releases/$RELEASE/storage"
+
+      - name: Migrations e caches
+        working-directory: ${{ env.APP_DIR }}/releases/${{ env.RELEASE }}
+        run: |
+          php artisan migrate --force
+          php artisan optimize
+
+      - name: Troca o symlink (zero downtime) e reinicia filas
+        run: |
+          ln -sfn "$APP_DIR/releases/$RELEASE" "$APP_DIR/current"
+          php "$APP_DIR/current/artisan" horizon:terminate   # supervisor sobe de novo com o código novo
+          sudo systemctl reload php8.4-fpm
+
+      - name: Health check
+        run: curl --fail --retry 5 --retry-delay 3 "${{ vars.APP_URL }}/up"
+
+      - name: Mantém só as 5 últimas releases
+        run: ls -1dt "$APP_DIR"/releases/* | tail -n +6 | xargs -r rm -rf
