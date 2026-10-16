@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\Module;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -32,7 +33,18 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => fn () => $request->user()?->only(['id', 'name', 'email', 'role', 'unit_id']),
+                'unit' => fn () => $request->user()?->unit?->only(['id', 'name', 'code']),
+                // matriz de módulos do usuário: o menu e os botões do Vue leem daqui
+                'can' => fn () => $request->user() ? collect(Module::cases())->mapWithKeys(fn (Module $m) => [
+                    $m->value => [
+                        'read' => $request->user()->canAccessModule($m),
+                        'write' => $request->user()->canAccessModule($m, 'write'),
+                    ],
+                ])->put('horizon', $request->user()->isAdmin()) : [],
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
             ],
         ];
     }
