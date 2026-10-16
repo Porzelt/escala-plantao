@@ -28,7 +28,7 @@ reprodutível de turnos, trocas com aprovação, exportação em fila, painel ge
 | **Fila assíncrona** — exportação XLSX/PDF na fila `exports` do Horizon, 202 + polling com barra de progresso, retries e `failed()` | [`ExportScheduleJob`](app/Jobs/ExportScheduleJob.php) · [`useExportProgress`](resources/js/Composables/useExportProgress.js) |
 | **Auditoria com retenção** — antes/depois só dos campos alterados, sem campos sensíveis, `model:prune` diário | [`Auditable`](app/Models/Concerns/Auditable.php) · [`AuditLog`](app/Models/AuditLog.php) |
 | **Trocas de plantão** — solicita → colega aceita → gestor aprova, transferência em transação com `lockForUpdate` | [`SwapService`](app/Services/SwapService.php) |
-| **Qualidade** — 70 testes (unit + feature) rodando em MariaDB real, Pint, cobertura mínima no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
+| **Qualidade** — 70 testes (unit + feature) em MariaDB real, **87,8% de cobertura**, Pint, mínimo de 70% exigido no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
 | **Carga** — 450 usuários simultâneos autenticados, **0% de erro**, p95 1,48 s (medido) | [`tests/k6`](tests/k6) |
 
 ## Arquitetura
