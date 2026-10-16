@@ -18,6 +18,10 @@ reprodutível de turnos, trocas com aprovação, exportação em fila, painel ge
 Codespaces sobe app, MariaDB, Redis e Horizon com os dados de demonstração e abre o sistema no navegador.
 Entre com `gestor1@escala.test` / `password`.
 
+> Se o VS Code perguntar *"Você confia nos autores desta pasta?"*, clique em **Confiar** — é o aviso padrão para
+> qualquer repositório aberto pela primeira vez; sem isso o terminal não sobe o app. O app abre sozinho numa aba
+> (ou pelo ícone 🌐 da porta 8000 no painel **Portas**).
+
 ![Demonstração: gerar escala, exportar em fila e aprovar troca](docs/img/demo.gif)
 
 > 🇺🇸 **In English:** on-call shift scheduling system built with Laravel 12, Inertia.js + Vue 3, MariaDB,
