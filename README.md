@@ -1,59 +1,147 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Escala Plantão
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![CI](https://github.com/Porzelt/escala-plantao/actions/workflows/ci.yml/badge.svg)](https://github.com/Porzelt/escala-plantao/actions/workflows/ci.yml)
+![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777bb4) ![Laravel 12](https://img.shields.io/badge/Laravel-12-ff2d20) ![Vue 3](https://img.shields.io/badge/Vue-3-42b883) ![Inertia](https://img.shields.io/badge/Inertia.js-2-9553e9) ![MariaDB](https://img.shields.io/badge/MariaDB-11-003545) ![Redis + Horizon](https://img.shields.io/badge/Redis-Horizon-dc382d)
 
-## About Laravel
+Gestão de **escalas de plantão** para equipes divididas em unidades: distribuição justa e
+reprodutível de turnos, trocas com aprovação, exportação em fila, painel gerencial e trilha de auditoria.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+> **Por que este projeto existe.** Trabalho desde 2023 num sistema governamental de alta
+> disponibilidade cujo código é confidencial. Este repositório **reproduz, com código aberto e
+> domínio fictício, os mesmos padrões que uso em produção** — Laravel + Inertia + Vue, RBAC por
+> módulo com isolamento por unidade, filas no Horizon, auditoria com retenção, CI/CD no GitHub
+> Actions e teste de carga com k6. Nenhum código, nome, dado ou endereço do sistema real foi usado.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+![Painel](docs/img/painel.png)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Escala do mês | Trocas | Auditoria |
+|---|---|---|
+| ![Escala](docs/img/escala.png) | ![Trocas](docs/img/trocas.png) | ![Auditoria](docs/img/auditoria.png) |
 
-## Learning Laravel
+## Destaques
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+| | Onde olhar |
+|---|---|
+| **Distribuição justa** — guloso por menor carga ponderada (noturno/fim de semana pesam mais), descanso mínimo de 12 h, indisponibilidades, carga herdada do mês anterior e **sorteio com semente** (mesma semente ⇒ mesma escala) | [`FairShiftDistributor`](app/Domain/Scheduling/FairShiftDistributor.php) · [testes](tests/Unit/FairShiftDistributorTest.php) |
+| **RBAC por perfil × módulo** — matriz em config, middleware `module:escalas,write`, gates por módulo, policies e o mesmo mapa enviado ao Vue para montar menu e botões | [`config/rbac.php`](config/rbac.php) · [`EnsureModuleAccess`](app/Http/Middleware/EnsureModuleAccess.php) · [`app/Policies`](app/Policies) |
+| **Isolamento por unidade** — global scope + preenchimento automático de `unit_id` + policies; registro de outra unidade responde 404 | [`BelongsToUnit`](app/Models/Concerns/BelongsToUnit.php) · [testes](tests/Feature/AccessControlTest.php) |
+| **Fila assíncrona** — exportação XLSX/PDF na fila `exports` do Horizon, 202 + polling com barra de progresso, retries e `failed()` | [`ExportScheduleJob`](app/Jobs/ExportScheduleJob.php) · [`useExportProgress`](resources/js/Composables/useExportProgress.js) |
+| **Auditoria com retenção** — antes/depois só dos campos alterados, sem campos sensíveis, `model:prune` diário | [`Auditable`](app/Models/Concerns/Auditable.php) · [`AuditLog`](app/Models/AuditLog.php) |
+| **Trocas de plantão** — solicita → colega aceita → gestor aprova, transferência em transação com `lockForUpdate` | [`SwapService`](app/Services/SwapService.php) |
+| **Qualidade** — 70 testes (unit + feature) rodando em MariaDB real, Pint, cobertura mínima no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
+| **Carga** — 450 usuários simultâneos autenticados, **0% de erro**, p95 1,48 s (medido) | [`tests/k6`](tests/k6) |
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Arquitetura
 
-## Laravel Sponsors
+```mermaid
+flowchart LR
+    B[Navegador<br/>Vue 3 + Inertia] -->|HTTP / sessão| M
+    subgraph Laravel 12
+      M[Middleware<br/>auth · module:x,nivel] --> C[Controllers]
+      C --> P[Policies<br/>sameUnitAs]
+      C --> S[Services<br/>ScheduleGenerator · SwapService]
+      S --> D[Domínio puro<br/>FairShiftDistributor]
+      C -->|dispatch| J[[ExportScheduleJob]]
+      E[(Eloquent<br/>Global scope por unidade<br/>Trait Auditable)]
+      S --> E
+      C --> E
+    end
+    E --> DB[(MariaDB)]
+    C -->|cache do painel · sessão| R[(Redis)]
+    J -->|fila exports| R
+    H[Horizon<br/>workers supervisionados] --> R
+    H --> J
+    J --> F[/storage: xlsx · pdf/]
+    SCH[Scheduler] -->|model:prune diário| E
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Decisões registradas em ADRs curtos:
 
-### Premium Partners
+1. [Monólito Laravel + Inertia + Vue](docs/adr/0001-monolito-inertia.md)
+2. [Isolamento por unidade com global scope + policies](docs/adr/0002-isolamento-por-unidade.md)
+3. [Exportações em fila com Horizon](docs/adr/0003-filas-horizon.md)
+4. [Algoritmo de distribuição justa](docs/adr/0004-distribuicao-justa.md)
+5. [Auditoria e retenção](docs/adr/0005-auditoria-retencao.md)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Perfis e módulos
 
-## Contributing
+| Módulo | Admin | Gestor | Membro |
+|---|---|---|---|
+| Escalas | escrita (todas as unidades) | escrita (sua unidade) | leitura |
+| Membros | escrita | escrita (não cria admin) | — |
+| Trocas | escrita | aprova da unidade | solicita / aceita |
+| Auditoria | leitura | leitura (sua unidade) | — |
+| Horizon | ✓ | — | — |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Como rodar
 
-## Code of Conduct
+Requer Docker. Não precisa de PHP nem Composer na máquina.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+git clone https://github.com/Porzelt/escala-plantao.git && cd escala-plantao
+cp .env.example .env
 
-## Security Vulnerabilities
+# dependências PHP usando a imagem do Sail
+docker run --rm -v "$PWD:/var/www/html" -w /var/www/html laravelsail/php84-composer composer install
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate --seed
+./vendor/bin/sail npm ci && ./vendor/bin/sail npm run build
+./vendor/bin/sail artisan horizon      # workers das filas (outro terminal)
+```
 
-## License
+Acesse http://localhost — contas fictícias (senha `password`):
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| E-mail | Perfil |
+|---|---|
+| `admin@escala.test` | administrador (vê todas as unidades e o Horizon em `/horizon`) |
+| `gestor1@escala.test` | gestor do "Pronto Atendimento Norte" |
+| `membro1@escala.test` | membro da mesma unidade |
+
+### Testes e estilo
+
+```bash
+./vendor/bin/sail artisan test        # 70 testes, banco MariaDB "testing"
+./vendor/bin/sail pint --test
+```
+
+## Teste de carga (k6)
+
+Medido localmente num notebook (Ryzen 7 5700X, Docker Desktop, servidor embutido do PHP com 16 workers):
+
+| Cenário | Requisições | Vazão | Erros | p95 |
+|---|---:|---:|---:|---:|
+| 150 usuários simultâneos | 16.878 | 149 req/s | 0,00% | 490 ms |
+| **450 usuários simultâneos** | **56.232** | **263 req/s** | **0,00%** | **1,48 s** |
+
+Cada usuário virtual faz login real e navega painel → escalas → trocas. Detalhes, como reproduzir
+e resumos brutos em [`tests/k6`](tests/k6/README.md).
+
+## CI/CD
+
+- **[`ci.yml`](.github/workflows/ci.yml)** — em todo PR: Pint, build do front, PHPUnit com MariaDB e Redis como
+  serviços e cobertura mínima de 70%; no `main`, smoke test k6 contra o app rodando.
+- **[`deploy.yml`](.github/workflows/deploy.yml)** — exemplo do padrão usado em produção: runner self-hosted,
+  release por diretório + symlink (zero downtime), migrations, `optimize`, `horizon:terminate`, health check e
+  aprovação manual no ambiente de produção.
+
+## Estrutura
+
+```
+app/
+  Domain/Scheduling/   algoritmo puro (sem framework)
+  Services/            orquestra domínio + banco
+  Models/Concerns/     BelongsToUnit (isolamento) e Auditable (auditoria)
+  Policies/            regras de autorização por recurso
+  Jobs/  Exports/      exportação em fila
+resources/js/Pages/    telas Vue 3 (Composition API)
+tests/Unit             algoritmo
+tests/Feature          RBAC, isolamento, fluxos, fila, auditoria
+tests/k6               carga
+docs/adr               decisões de arquitetura
+```
+
+---
+
+Feito por **Henrique Porzelt Neto** · [LinkedIn](https://linkedin.com/in/henriqueporzelt) · [GitHub](https://github.com/Porzelt)
