@@ -8,6 +8,7 @@ services:
     environment:
       DB_HOST: mariadb
       REDIS_HOST: redis
+      XDEBUG_MODE: 'off'
     depends_on: [mariadb, redis]
   mariadb:
     image: mariadb:11
