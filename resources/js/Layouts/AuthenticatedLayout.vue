@@ -5,9 +5,23 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const showingNavigationDropdown = ref(false);
+
+// o menu nasce da matriz de permissões enviada pelo backend (HandleInertiaRequests)
+const page = usePage();
+const nav = computed(() => {
+    const can = page.props.auth.can;
+    return [
+        { label: 'Painel', route: 'dashboard', match: 'dashboard', show: true },
+        { label: 'Escalas', route: 'schedules.index', match: 'schedules.*', show: can.escalas?.read },
+        { label: 'Trocas', route: 'swaps.index', match: 'swaps.*', show: can.trocas?.write },
+        { label: 'Membros', route: 'members.index', match: 'members.*', show: can.membros?.read },
+        { label: 'Auditoria', route: 'audit.index', match: 'audit.*', show: can.auditoria?.read },
+    ].filter((i) => i.show);
+});
 </script>
 
 <template>
@@ -34,11 +48,20 @@ const showingNavigationDropdown = ref(false);
                                 class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
                             >
                                 <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
+                                    v-for="item in nav"
+                                    :key="item.route"
+                                    :href="route(item.route)"
+                                    :active="route().current(item.match)"
                                 >
-                                    Dashboard
+                                    {{ item.label }}
                                 </NavLink>
+                                <a
+                                    v-if="$page.props.auth.can.horizon"
+                                    href="/horizon"
+                                    class="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-700"
+                                >
+                                    Filas
+                                </a>
                             </div>
                         </div>
 
@@ -74,14 +97,14 @@ const showingNavigationDropdown = ref(false);
                                         <DropdownLink
                                             :href="route('profile.edit')"
                                         >
-                                            Profile
+                                            Perfil
                                         </DropdownLink>
                                         <DropdownLink
                                             :href="route('logout')"
                                             method="post"
                                             as="button"
                                         >
-                                            Log Out
+                                            Sair
                                         </DropdownLink>
                                     </template>
                                 </Dropdown>
@@ -141,10 +164,12 @@ const showingNavigationDropdown = ref(false);
                 >
                     <div class="space-y-1 pb-3 pt-2">
                         <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
+                            v-for="item in nav"
+                            :key="item.route"
+                            :href="route(item.route)"
+                            :active="route().current(item.match)"
                         >
-                            Dashboard
+                            {{ item.label }}
                         </ResponsiveNavLink>
                     </div>
 
@@ -165,14 +190,14 @@ const showingNavigationDropdown = ref(false);
 
                         <div class="mt-3 space-y-1">
                             <ResponsiveNavLink :href="route('profile.edit')">
-                                Profile
+                                Perfil
                             </ResponsiveNavLink>
                             <ResponsiveNavLink
                                 :href="route('logout')"
                                 method="post"
                                 as="button"
                             >
-                                Log Out
+                                Sair
                             </ResponsiveNavLink>
                         </div>
                     </div>
@@ -191,6 +216,14 @@ const showingNavigationDropdown = ref(false);
 
             <!-- Page Content -->
             <main>
+                <div
+                    v-if="$page.props.flash.success"
+                    class="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8"
+                >
+                    <div class="rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+                        {{ $page.props.flash.success }}
+                    </div>
+                </div>
                 <slot />
             </main>
         </div>
