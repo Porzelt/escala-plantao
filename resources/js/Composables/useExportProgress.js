@@ -27,9 +27,16 @@ export function useExportProgress() {
 
     const start = async (scheduleId, format) => {
         stop();
-        const { data } = await axios.post(route('schedules.export', scheduleId), { format });
-        state.value = data;
-        poll(data.id);
+        try {
+            const { data } = await axios.post(route('schedules.export', scheduleId), { format });
+            state.value = data;
+            poll(data.id);
+        } catch (e) {
+            const msg = e.response?.status === 429
+                ? 'Muitas exportações em sequência. Aguarde um minuto.'
+                : 'Não foi possível iniciar a exportação.';
+            state.value = { status: 'falhou', progress: 0, error: msg };
+        }
     };
 
     onBeforeUnmount(stop);

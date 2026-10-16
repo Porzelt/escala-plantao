@@ -63,7 +63,9 @@ class DatabaseSeeder extends Seeder
             // algumas trocas em andamento
             $upcoming = ShiftAssignment::where('schedule_id', $current->id)->whereDate('date', '>', today())->inRandomOrder()->limit(3)->get();
             foreach ($upcoming as $k => $a) {
-                $target = $members->where('id', '!=', $a->user_id)->random();
+                // colega sem plantão no mesmo dia, para a troca ser aprovável
+                $busy = ShiftAssignment::whereDate('date', $a->date)->pluck('user_id')->all();
+                $target = $members->whereNotIn('id', [...$busy, $a->user_id])->random();
                 SwapRequest::create([
                     'shift_assignment_id' => $a->id,
                     'requester_id' => $a->user_id,

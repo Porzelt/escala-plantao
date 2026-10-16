@@ -83,7 +83,7 @@ const publish = () => {
 
             <div v-if="exportState" class="mt-4">
                 <div class="flex justify-between text-xs text-gray-500">
-                    <span>Exportação: {{ exportState.status.replace('_', ' ') }}</span>
+                    <span>Exportação: {{ ({ na_fila: 'na fila', processando: 'processando', concluida: 'concluída — baixando', falhou: 'falhou' })[exportState.status] }}</span>
                     <span class="tabular-nums">{{ exportState.progress }}%</span>
                 </div>
                 <div class="mt-1 h-2 overflow-hidden rounded bg-gray-200">
