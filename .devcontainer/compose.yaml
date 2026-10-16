@@ -1,0 +1,20 @@
+# Ambiente do GitHub Codespaces: app + MariaDB + Redis, igual ao Sail local.
+services:
+  app:
+    build: .
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/escala-plantao:cached
+    environment:
+      DB_HOST: mariadb
+      REDIS_HOST: redis
+    depends_on: [mariadb, redis]
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: escala_plantao
+      MARIADB_USER: sail
+      MARIADB_PASSWORD: password
+      MARIADB_ROOT_PASSWORD: password
+  redis:
+    image: redis:7-alpine
