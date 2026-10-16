@@ -67,6 +67,16 @@ class SwapFlowTest extends TestCase
     }
 
     #[Test]
+    public function listagem_mostra_botao_aprovar_para_o_gestor(): void
+    {
+        $swap = $this->requestSwap();
+        $this->actingAs($this->bruno)->post("/trocas/{$swap->id}/responder", ['accept' => true]);
+
+        $this->actingAs($this->gestor)->get('/trocas')
+            ->assertInertia(fn ($page) => $page->where('swaps.data.0.can.decide', true));
+    }
+
+    #[Test]
     public function gestor_nao_aprova_antes_do_colega_aceitar(): void
     {
         $swap = $this->requestSwap();

@@ -19,7 +19,7 @@ class SwapRequestController extends Controller
     {
         $user = $request->user();
 
-        $query = SwapRequest::with(['assignment.shiftType:id,name', 'requester:id,name', 'target:id,name'])->latest();
+        $query = SwapRequest::with(['assignment.shiftType:id,name', 'requester:id,name,unit_id', 'target:id,name'])->latest();
 
         // gestor vê a unidade; membro vê só as trocas em que participa
         if ($user->isAdmin()) {
