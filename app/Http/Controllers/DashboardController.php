@@ -46,7 +46,7 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->whereDate('date', '>=', today())
             ->orderBy('date')->limit(5)->get()
-            ->map(fn ($a) => ['date' => $a->date->format('d/m (D)'), 'shift' => $a->shiftType->name, 'starts_at' => substr($a->shiftType->starts_at, 0, 5)]);
+            ->map(fn ($a) => ['date' => $a->date->locale('pt_BR')->isoFormat('DD/MM (ddd)'), 'shift' => $a->shiftType->name, 'starts_at' => substr($a->shiftType->starts_at, 0, 5)]);
 
         return Inertia::render('Dashboard', ['stats' => $stats, 'nextShifts' => $next]);
     }
