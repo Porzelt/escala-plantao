@@ -50,6 +50,43 @@ services:
                 - '--innodb_initialized'
             retries: 3
             timeout: 5s
+    # --- PostgreSQL (opcional): docker compose --profile pgsql up -d ---
+    # Sobe o Postgres e uma segunda instância do app apontando para ele em http://localhost:8080.
+    # O app padrão (porta 80) continua no MariaDB.
+    pgsql:
+        image: 'postgres:17'
+        profiles: [pgsql]
+        ports:
+            - '${FORWARD_PGSQL_PORT:-5432}:5432'
+        environment:
+            PGPASSWORD: '${DB_PASSWORD:-password}'
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-password}'
+        volumes:
+            - 'sail-pgsql:/var/lib/postgresql/data'
+            - './vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql'
+        networks:
+            - sail
+        healthcheck:
+            test: ['CMD', 'pg_isready', '-q', '-d', '${DB_DATABASE}', '-U', '${DB_USERNAME}']
+            retries: 3
+            timeout: 5s
+    laravel.pgsql:
+        extends: laravel.test
+        profiles: [pgsql]
+        ports: !override
+            - '${APP_PGSQL_PORT:-8080}:80'
+        environment:
+            DB_CONNECTION: pgsql
+            DB_HOST: pgsql
+            DB_PORT: 5432
+            CACHE_PREFIX: pgsql_
+            REDIS_PREFIX: pgsql_
+            HORIZON_PREFIX: 'pgsql_horizon:'
+        depends_on: !override
+            - pgsql
+            - redis
     redis:
         image: 'redis:alpine'
         ports:
@@ -70,6 +107,8 @@ networks:
         driver: bridge
 volumes:
     sail-mariadb:
+        driver: local
+    sail-pgsql:
         driver: local
     sail-redis:
         driver: local

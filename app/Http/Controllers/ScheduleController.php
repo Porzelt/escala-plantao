@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -43,9 +44,12 @@ class ScheduleController extends Controller
         $unitId = $user->isAdmin() ? (int) $data['unit_id'] : $user->unit_id;
         $month = Carbon::createFromFormat('Y-m', $data['month'])->startOfMonth()->toDateString();
 
-        $request->validate(['month' => [Rule::unique('schedules')->where(fn ($q) => $q->where('unit_id', $unitId)->whereDate('month', $month))]], [
-            'month.unique' => 'Já existe escala para este mês nesta unidade.',
-        ]);
+        // Checagem explícita com a data já normalizada (Y-m-01). A regra `unique` compararia o texto
+        // "2026-12" com a coluna date: o MariaDB converte em silêncio e nunca acha duplicata, o Postgres rejeita.
+        $exists = Schedule::withoutGlobalScopes()->where('unit_id', $unitId)->whereDate('month', $month)->exists();
+        if ($exists) {
+            throw ValidationException::withMessages(['month' => 'Já existe escala para este mês nesta unidade.']);
+        }
 
         $schedule = Schedule::create([
             'unit_id' => $unitId,

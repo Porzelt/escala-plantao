@@ -24,8 +24,17 @@ jobs:
       - run: vendor/bin/pint --test
 
   tests:
-    name: PHPUnit (MariaDB + Redis)
+    name: PHPUnit (${{ matrix.db }} + Redis)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: mariadb
+            port: 3306
+          - db: pgsql
+            port: 5432
+    # os dois bancos sobem como serviço; a matriz escolhe qual a aplicação usa
     services:
       mariadb:
         image: mariadb:11
@@ -38,13 +47,23 @@ jobs:
         options: >-
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=10
+      pgsql:
+        image: postgres:17
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: sail
+          POSTGRES_PASSWORD: password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U sail -d testing"
+          --health-interval=5s --health-timeout=5s --health-retries=10
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
     env:
-      DB_CONNECTION: mariadb
+      DB_CONNECTION: ${{ matrix.db }}
       DB_HOST: 127.0.0.1
-      DB_PORT: 3306
+      DB_PORT: ${{ matrix.port }}
       DB_DATABASE: testing
       DB_USERNAME: sail
       DB_PASSWORD: password
@@ -55,7 +74,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, gd, zip, intl, pcntl
+          extensions: pdo_mysql, pdo_pgsql, gd, zip, intl, pcntl
           tools: composer:v2
           coverage: pcov
       - uses: actions/cache@v4
