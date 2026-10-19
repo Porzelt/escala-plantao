@@ -36,9 +36,14 @@ class DashboardController extends Controller
                     ->when(! $user->isAdmin(), fn ($q) => $q->whereHas('requester', fn ($r) => $r->where('unit_id', $user->unit_id)))
                     ->count(),
                 'spread' => $perMember->isEmpty() ? 0 : $perMember->max() - $perMember->min(),
+                // agrupa por data no banco e converte para dia da semana em PHP:
+                // DAYOFWEEK() é MySQL/MariaDB e EXTRACT(DOW) é Postgres, então evitamos ambos.
+                // Chave 1 = domingo ... 7 = sábado (mesmo formato que o front espera).
                 'by_weekday' => ShiftAssignment::whereIn('schedule_id', $current)
-                    ->selectRaw('DAYOFWEEK(date) as dow, count(*) as total')->groupBy('dow')->orderBy('dow')
-                    ->pluck('total', 'dow'),
+                    ->selectRaw('date, count(*) as total')->groupBy('date')->get()
+                    ->groupBy(fn ($row) => $row->date->dayOfWeek + 1)
+                    ->map(fn ($rows) => $rows->sum('total'))
+                    ->sortKeys(),
             ];
         });
 

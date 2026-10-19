@@ -13,7 +13,7 @@ class AuditLogController extends Controller
     {
         $logs = AuditLog::with('user:id,name')
             ->when($request->query('event'), fn ($q, $e) => $q->where('event', $e))
-            ->when($request->query('type'), fn ($q, $t) => $q->where('auditable_type', 'like', "%{$t}"))
+            ->when($request->query('type'), fn ($q, $t) => $q->whereLike('auditable_type', "%{$t}"))
             ->latest('id')
             ->paginate(25)
             ->withQueryString();

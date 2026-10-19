@@ -18,9 +18,10 @@ class MemberController extends Controller
     {
         Gate::authorize('viewAny', User::class);
 
+        // whereLike() sem case sensitivity: vira LIKE no MariaDB e ILIKE no Postgres (onde LIKE diferencia maiúsculas)
         $members = User::visibleTo($request->user())
             ->with('unit:id,code')
-            ->when($request->string('q')->toString(), fn ($q, $term) => $q->where(fn ($w) => $w->where('name', 'like', "%{$term}%")->orWhere('registration', 'like', "%{$term}%")))
+            ->when($request->string('q')->toString(), fn ($q, $term) => $q->where(fn ($w) => $w->whereLike('name', "%{$term}%")->orWhereLike('registration', "%{$term}%")))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
