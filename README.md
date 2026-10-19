@@ -1,7 +1,7 @@
 # Escala Plantão
 
 [![CI](https://github.com/Porzelt/escala-plantao/actions/workflows/ci.yml/badge.svg)](https://github.com/Porzelt/escala-plantao/actions/workflows/ci.yml)
-![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777bb4) ![Laravel 12](https://img.shields.io/badge/Laravel-12-ff2d20) ![Vue 3](https://img.shields.io/badge/Vue-3-42b883) ![Inertia](https://img.shields.io/badge/Inertia.js-2-9553e9) ![MariaDB](https://img.shields.io/badge/MariaDB-11-003545) ![Redis + Horizon](https://img.shields.io/badge/Redis-Horizon-dc382d)
+![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777bb4) ![Laravel 12](https://img.shields.io/badge/Laravel-12-ff2d20) ![Vue 3](https://img.shields.io/badge/Vue-3-42b883) ![Inertia](https://img.shields.io/badge/Inertia.js-2-9553e9) ![MariaDB](https://img.shields.io/badge/MariaDB-11-003545) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169e1) ![Redis + Horizon](https://img.shields.io/badge/Redis-Horizon-dc382d)
 
 Gestão de **escalas de plantão** para equipes divididas em unidades: distribuição justa e
 reprodutível de turnos, trocas com aprovação, exportação em fila, painel gerencial e trilha de auditoria.
@@ -48,7 +48,7 @@ Entre com `gestor1@escala.test` / `password`.
 | **Fila assíncrona** — exportação XLSX/PDF na fila `exports` do Horizon, 202 + polling com barra de progresso, retries e `failed()` | [`ExportScheduleJob`](app/Jobs/ExportScheduleJob.php) · [`useExportProgress`](resources/js/Composables/useExportProgress.js) |
 | **Auditoria com retenção** — antes/depois só dos campos alterados, sem campos sensíveis, `model:prune` diário | [`Auditable`](app/Models/Concerns/Auditable.php) · [`AuditLog`](app/Models/AuditLog.php) |
 | **Trocas de plantão** — solicita → colega aceita → gestor aprova, transferência em transação com `lockForUpdate` | [`SwapService`](app/Services/SwapService.php) |
-| **Qualidade** — 71 testes (unit + feature) em MariaDB real, **87,8% de cobertura**, Pint, mínimo de 70% exigido no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
+| **Qualidade** — 75 testes (unit + feature) em MariaDB **e PostgreSQL** reais, **87,8% de cobertura**, Pint, mínimo de 70% exigido no CI | [`tests/`](tests) · [`ci.yml`](.github/workflows/ci.yml) |
 | **Carga** — 450 usuários simultâneos autenticados, **0% de erro**, p95 1,48 s (medido) | [`tests/k6`](tests/k6) |
 
 ## Arquitetura
@@ -82,6 +82,7 @@ Decisões registradas em ADRs curtos:
 3. [Exportações em fila com Horizon](docs/adr/0003-filas-horizon.md)
 4. [Algoritmo de distribuição justa](docs/adr/0004-distribuicao-justa.md)
 5. [Auditoria e retenção](docs/adr/0005-auditoria-retencao.md)
+6. [Suporte a PostgreSQL: decisões e diferenças](docs/adr/0006-suporte-postgresql.md)
 
 ## Perfis e módulos
 
@@ -121,10 +122,25 @@ Acesse http://localhost — contas fictícias (senha `password`):
 | `gestor1@escala.test` | gestor do "Pronto Atendimento Norte" |
 | `membro1@escala.test` | membro da mesma unidade |
 
+### Bancos de dados suportados
+
+| Banco | Como subir | App |
+|---|---|---|
+| **MariaDB 11** (padrão) | `./vendor/bin/sail up -d` | http://localhost |
+| **PostgreSQL 17** | `docker compose --profile pgsql up -d`, depois `docker compose exec laravel.pgsql php artisan migrate --seed` | http://localhost:8080 |
+
+O perfil `pgsql` sobe o Postgres e uma segunda instância do app apontando para ele, então os dois rodam
+lado a lado. Para usar **só** Postgres, copie `.env.pgsql.example` para `.env`. A suíte roda nos dois bancos
+no CI (matriz), e as diferenças encontradas na migração estão em [docs/postgres-notes.md](docs/postgres-notes.md).
+
+```bash
+docker compose exec laravel.pgsql php artisan test   # suíte inteira no Postgres
+```
+
 ### Testes e estilo
 
 ```bash
-./vendor/bin/sail artisan test        # 71 testes, banco MariaDB "testing"
+./vendor/bin/sail artisan test        # 75 testes, banco MariaDB "testing"
 ./vendor/bin/sail pint --test
 ```
 
